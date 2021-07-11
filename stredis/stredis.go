@@ -7,10 +7,12 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+// redis连接池
 type ConnPool struct {
 	pool *redis.Pool
 }
 
+// redis set命令，指定附加项
 type SetOptions struct {
 	ExpireTime       uint64 // EX，过期时间 (秒）
 	ExpireTimeInMs   uint64 // PX，过期时间（毫秒）
@@ -24,13 +26,14 @@ type SetOptions struct {
 	GetOld bool // GET，返回key设置前存储的值
 }
 
+// redis set command
 func (c *ConnPool) Set(key string, value string) bool {
 	conn := c.pool.Get()
 	reply, _ := redis.String(conn.Do("set", key, value))
 	return reply == "OK"
 }
 
-// options: "ex"
+// redis set command with options
 func (c *ConnPool) SetWithOptions(key string, value string, options *SetOptions) bool {
 	conn := c.pool.Get()
 	args := []interface{}{key, value}
@@ -39,6 +42,7 @@ func (c *ConnPool) SetWithOptions(key string, value string, options *SetOptions)
 	return reply == "OK"
 }
 
+// 关闭连接池
 func (c *ConnPool) Close() {
 	if c.pool != nil {
 		c.pool.Close()
