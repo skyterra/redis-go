@@ -26,6 +26,11 @@ type SetOptions struct {
 	GetOld bool // GET，返回key设置前存储的值
 }
 
+func (c *ConnPool) Do(command string, args ...interface{}) (interface{}, error) {
+	conn := c.pool.Get()
+	return conn.Do(command, args...)
+}
+
 // redis set command
 func (c *ConnPool) Set(key string, value string) bool {
 	conn := c.pool.Get()
