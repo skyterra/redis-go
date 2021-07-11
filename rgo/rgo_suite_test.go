@@ -1,4 +1,4 @@
-package stredis_test
+package rgo_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestStredis(t *testing.T) {
+func TestRgo(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Stredis Suite")
+	RunSpecs(t, "Rgo Suite")
 }

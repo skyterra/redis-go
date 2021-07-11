@@ -1,16 +1,10 @@
-package stredis
+package rgo
 
-import (
-	"errors"
-	"fmt"
+import "github.com/gomodule/redigo/redis"
 
-	"github.com/gomodule/redigo/redis"
-)
-
-// redis连接池
-type ConnPool struct {
-	pool *redis.Pool
-}
+/*
+ * Redis String
+ */
 
 // redis set命令，指定附加项
 type SetOptions struct {
@@ -26,19 +20,14 @@ type SetOptions struct {
 	GetOld bool // GET，返回key设置前存储的值
 }
 
-func (c *ConnPool) Do(command string, args ...interface{}) (interface{}, error) {
-	conn := c.pool.Get()
-	return conn.Do(command, args...)
-}
-
-// redis set command
+// SET命令，设置成功时，返回true，否则false
 func (c *ConnPool) Set(key string, value string) bool {
 	conn := c.pool.Get()
 	reply, _ := redis.String(conn.Do("set", key, value))
 	return reply == "OK"
 }
 
-// redis set command with options
+// SET OPTIONS命令，设置成功时，返回true，否则false
 func (c *ConnPool) SetWithOptions(key string, value string, options *SetOptions) bool {
 	conn := c.pool.Get()
 	args := []interface{}{key, value}
@@ -47,11 +36,15 @@ func (c *ConnPool) SetWithOptions(key string, value string, options *SetOptions)
 	return reply == "OK"
 }
 
-// 关闭连接池
-func (c *ConnPool) Close() {
-	if c.pool != nil {
-		c.pool.Close()
+// GET命令，key存在时，返回string类型值和true，否则返回空和false
+func (c *ConnPool) Get(key string) (string, bool) {
+	conn := c.pool.Get()
+	reply, err := redis.String(conn.Do("get", key))
+	if err != nil {
+		return "", false
 	}
+
+	return reply, true
 }
 
 func (opt *SetOptions) ToArgs() []interface{} {
@@ -86,33 +79,6 @@ func (opt *SetOptions) ToArgs() []interface{} {
 	}
 
 	return args
-}
-
-// 连接redis，返回连接池
-func DialRedis(host, password string, port, db int) (*ConnPool, error) {
-	if port == 0 {
-		port = 6379
-	}
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-	pool := &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", addr, redis.DialDatabase(db), redis.DialPassword(password))
-		},
-	}
-
-	conn := pool.Get()
-	defer conn.Close()
-
-	if conn.Err() != nil {
-		return nil, conn.Err()
-	}
-
-	if r, _ := redis.String(conn.Do("PING")); r != "PONG" {
-		return nil, errors.New("connect redis failed")
-	}
-
-	return &ConnPool{pool: pool}, nil
 }
 
 func NewSetOptions() *SetOptions {
