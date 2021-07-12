@@ -11,19 +11,27 @@ import (
  * rgo: Redis-Go
  */
 
-// Redis连接池对象
-type ConnPool struct {
+// Redis客户端
+type RedisClient struct {
 	pool *redis.Pool
 }
 
 // 通用命令接口
-func (c *ConnPool) Do(command string, args ...interface{}) (interface{}, error) {
+func (c *RedisClient) Do(command string, args ...interface{}) (interface{}, error) {
 	conn := c.pool.Get()
 	return conn.Do(command, args...)
 }
 
+func (c *RedisClient) getConn(tc []TransConn) redis.Conn {
+	if len(tc) > 0 {
+		return tc[0]
+	}
+
+	return c.pool.Get()
+}
+
 // 连接redis，返回连接池
-func DialRedis(host, password string, port, db int) (*ConnPool, error) {
+func DialRedis(host, password string, port, db int) (*RedisClient, error) {
 	if port == 0 {
 		port = 6379
 	}
@@ -46,11 +54,11 @@ func DialRedis(host, password string, port, db int) (*ConnPool, error) {
 		return nil, errors.New("connect redis failed")
 	}
 
-	return &ConnPool{pool: pool}, nil
+	return &RedisClient{pool: pool}, nil
 }
 
 // 关闭连接池
-func CloseRedis(c *ConnPool) {
+func CloseRedis(c *RedisClient) {
 	if c.pool != nil {
 		c.pool.Close()
 	}
