@@ -19,13 +19,21 @@ type SetOptions struct {
 }
 
 // SET命令
-func (c *RedisClient) Set(key string, value string, tc ...TransConn) bool {
+func (c *RedisClient) Set(key string, value interface{}, tc ...TransConn) bool {
 	conn := c.getConn(tc)
 	reply, _ := redis.String(conn.Do("set", key, value))
 	return reply == "OK"
 }
 
 // SET命令 指定额外参数
+// usage:
+//		options := rgo.NewSetOptions()
+//		options.ExpireTime = 60
+//		options.KeepTTL = true
+//		options.IfExist = true
+//		options.GetOld = true
+//		redisClient.SetWithOptions("hello", "world", options)
+//
 func (c *RedisClient) SetWithOptions(key string, value string, options *SetOptions, tc ...TransConn) bool {
 	conn := c.getConn(tc)
 	args := []interface{}{key, value}
@@ -35,8 +43,8 @@ func (c *RedisClient) SetWithOptions(key string, value string, options *SetOptio
 }
 
 // GET命令
-func (c *RedisClient) Get(key string) (string, bool) {
-	conn := c.pool.Get()
+func (c *RedisClient) Get(key string, tc ...TransConn) (string, bool) {
+	conn := c.getConn(tc)
 	reply, err := redis.String(conn.Do("get", key))
 	if err != nil {
 		return "", false
