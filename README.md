@@ -2,7 +2,6 @@
 基于[Redigo](https://github.com/gomodule/redigo)库，提供更为直接的redis访问接口
 
 ## redis 事务
-普通事务
 ```go
 redisClient, err := rgo.DialRedis("127.0.0.1", "", 0, 0)
 reply, err := redisClient.Transaction(func(tc rgo.TransConn) {
@@ -13,7 +12,7 @@ reply, err := redisClient.Transaction(func(tc rgo.TransConn) {
 })
 ```
 
-带有watch的事务
+watch类事务使用
 ```go
 redisClient, err := rgo.DialRedis("127.0.0.1", "", 0, 0)
 reply := redisClient.Transaction("WatchKey", func(tc rgo.TransConn) {
@@ -25,6 +24,23 @@ reply := redisClient.Transaction("WatchKey", func(tc rgo.TransConn) {
 ```
 
 ## 分布式锁
+简易分布式锁使用
+```go
+// 并行更新文档读取数量，初始时，文档读取数量为1
+docID := "doc:xxx:123:xxx"
+redisClient.Set(docID, 1)
+ok := redisClient.WithLock(docID, func(){
+    // 变更文档读取数量
+    count, ok := redisClient.Get(docID)
+    number, _ := strconv.Atoi(count)
+    redisClient.Set(docID, number+1)
+})
+
+if !ok {
+	// 为获取到分布式锁，更新失败
+}
+```
+常规分布式锁使用
 ```go
 // 并行更新文档读取数量，初始时，文档读取数量为1
 docID := "doc:xxx:123:xxx"

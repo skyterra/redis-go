@@ -35,7 +35,7 @@ const (
 //
 //		// 释放当前文档的锁
 //		redisClient.ReleaseLock(docID, lockID)
-func (c *RedisClient) AcquireLock(lockName string, acquireTimeout, lockTimeout uint64) (string, bool) {
+func (c *RedisClient) AcquireLock(resName string, acquireTimeout, lockTimeout uint64) (string, bool) {
 	if acquireTimeout <= 0 {
 		acquireTimeout = DefaultAcquireTimeout
 	}
@@ -46,14 +46,14 @@ func (c *RedisClient) AcquireLock(lockName string, acquireTimeout, lockTimeout u
 
 	identifier := uuid.NewString()
 	endTime := NowMs() + acquireTimeout
-	lockName = fmt.Sprintf("%s:%s", LockPrefix, lockName)
+	resName = fmt.Sprintf("%s:%s", LockPrefix, resName)
 
 	for NowMs() < endTime {
 		options := NewSetOptions()
 		options.IfNotExist = true
 		options.ExpireTimeInMs = lockTimeout
 
-		ok := c.SetWithOptions(lockName, identifier, options)
+		ok := c.SetWithOptions(resName, identifier, options)
 		if ok {
 			return identifier, true
 		}
@@ -66,19 +66,38 @@ func (c *RedisClient) AcquireLock(lockName string, acquireTimeout, lockTimeout u
 }
 
 // 释放分布式锁
-func (c *RedisClient) ReleaseLock(lockName, identifier string) error {
-	lockName = fmt.Sprintf("%s:%s", LockPrefix, lockName)
+func (c *RedisClient) ReleaseLock(resName, identifier string) error {
+	resName = fmt.Sprintf("%s:%s", LockPrefix, resName)
 
 	// 检查是否是当前进程添加的锁
-	reply, _ := c.Get(lockName)
+	reply, _ := c.Get(resName)
 	if reply != identifier {
 		return nil
 	}
 
 	// 删除锁
-	_, err := c.TransactionWithWatch(lockName, func(tc TransConn) {
-		tc.Do("del", lockName)
+	_, err := c.TransactionWithWatch(resName, func(tc TransConn) {
+		tc.Do("del", resName)
 	})
 
 	return err
+}
+
+// 添加分布式锁执行redis命令
+// usage:
+// redisClient.WithLock(docID, func() {
+// 		count, _ := redisClient.Get(docID)
+//		number, _ := strconv.Atoi(count)
+//		redisClient.Set(docID, number+1)
+// })
+func (c *RedisClient) WithLock(resName string, doCommand func()) bool {
+	lockID, ok := c.AcquireLock(resName, 0, 0)
+	if !ok {
+		return false
+	}
+
+	doCommand()
+
+	c.ReleaseLock(resName, lockID)
+	return true
 }
